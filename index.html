@@ -1,143 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pac-Man Game</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Galaga Clone</title>
   <style>
     body {
       margin: 0;
       background: black;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      overflow: hidden;
     }
     canvas {
-      border: 2px solid white;
+      display: block;
+      margin: 0 auto;
       background: black;
     }
   </style>
 </head>
 <body>
-  <canvas id="game" width="400" height="400"></canvas>
+  <canvas id="gameCanvas" width="480" height="640"></canvas>
   <script>
-    const canvas = document.getElementById("game");
+    const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
-    const tileSize = 20;
-    const map = [
-      "####################",
-      "#........##........#",
-      "#.####.#.##.#.####.#",
-      "#o####.#.##.#.####o#",
-      "#.####.#.##.#.####.#",
-      "#..................#",
-      "#.####.######.####.#",
-      "#......#....#......#",
-      "######.# ## #.######",
-      "      #.#  #.#      ",
-      "######.# ####.#.####",
-      "#........##........#",
-      "#.####.#.##.#.####.#",
-      "#o...#.#....#.##..o#",
-      "###.#.#.##.#.#.#.###",
-      "#......#....#......#",
-      "#.##############.###",
-      "#..................#",
-      "####################"
-    ];
-
-    const pacman = {
-      x: 1,
-      y: 1,
-      dirX: 0,
-      dirY: 0,
-      nextDirX: 0,
-      nextDirY: 0,
+    const player = {
+      x: canvas.width / 2 - 20,
+      y: canvas.height - 60,
+      width: 40,
+      height: 40,
+      color: "lime",
       speed: 5,
-      frame: 0
     };
 
-    function canMove(x, y) {
-      return map[y] && map[y][x] && map[y][x] !== "#";
+    const bullets = [];
+    const enemies = [];
+
+    let keys = {};
+
+    document.addEventListener("keydown", e => keys[e.code] = true);
+    document.addEventListener("keyup", e => keys[e.code] = false);
+
+    function spawnEnemy() {
+      enemies.push({
+        x: Math.random() * (canvas.width - 40),
+        y: -40,
+        width: 40,
+        height: 40,
+        speed: 2 + Math.random() * 2,
+        color: "red",
+      });
     }
 
-    function drawMap() {
-      for (let y = 0; y < map.length; y++) {
-        for (let x = 0; x < map[y].length; x++) {
-          if (map[y][x] === "#") {
-            ctx.fillStyle = "blue";
-            ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-          } else if (map[y][x] === ".") {
-            ctx.fillStyle = "white";
-            ctx.beginPath();
-            ctx.arc(x * tileSize + tileSize / 2, y * tileSize + tileSize / 2, 2, 0, Math.PI * 2);
-            ctx.fill();
-          } else if (map[y][x] === "o") {
-            ctx.fillStyle = "white";
-            ctx.beginPath();
-            ctx.arc(x * tileSize + tileSize / 2, y * tileSize + tileSize / 2, 5, 0, Math.PI * 2);
-            ctx.fill();
+    function update() {
+      if (keys["ArrowLeft"] && player.x > 0) player.x -= player.speed;
+      if (keys["ArrowRight"] && player.x + player.width < canvas.width) player.x += player.speed;
+      if (keys["Space"] && bullets.length < 5) {
+        bullets.push({
+          x: player.x + player.width / 2 - 2.5,
+          y: player.y,
+          width: 5,
+          height: 10,
+          speed: 7,
+          color: "white",
+        });
+      }
+
+      bullets.forEach((b, i) => {
+        b.y -= b.speed;
+        if (b.y < 0) bullets.splice(i, 1);
+      });
+
+      enemies.forEach((e, i) => {
+        e.y += e.speed;
+        if (e.y > canvas.height) enemies.splice(i, 1);
+      });
+
+      bullets.forEach((b, bi) => {
+        enemies.forEach((e, ei) => {
+          if (b.x < e.x + e.width &&
+              b.x + b.width > e.x &&
+              b.y < e.y + e.height &&
+              b.y + b.height > e.y) {
+            bullets.splice(bi, 1);
+            enemies.splice(ei, 1);
           }
-        }
-      }
+        });
+      });
     }
 
-    function drawPacman() {
-      ctx.fillStyle = "yellow";
-      ctx.beginPath();
-      ctx.arc(
-        pacman.x * tileSize + tileSize / 2,
-        pacman.y * tileSize + tileSize / 2,
-        tileSize / 2 - 2,
-        0.25 * Math.PI,
-        1.75 * Math.PI
-      );
-      ctx.lineTo(pacman.x * tileSize + tileSize / 2, pacman.y * tileSize + tileSize / 2);
-      ctx.fill();
+    function drawRect(obj) {
+      ctx.fillStyle = obj.color;
+      ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
     }
 
-    function gameLoop() {
+    function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawMap();
-      drawPacman();
-
-      // 다음 방향으로 이동 가능한 경우 방향 전환
-      if (canMove(pacman.x + pacman.nextDirX, pacman.y + pacman.nextDirY)) {
-        pacman.dirX = pacman.nextDirX;
-        pacman.dirY = pacman.nextDirY;
-      }
-
-      // 현재 방향으로 이동 가능하면 이동
-      if (pacman.frame % pacman.speed === 0) {
-        if (canMove(pacman.x + pacman.dirX, pacman.y + pacman.dirY)) {
-          pacman.x += pacman.dirX;
-          pacman.y += pacman.dirY;
-        }
-      }
-
-      pacman.frame++;
-      requestAnimationFrame(gameLoop);
+      drawRect(player);
+      bullets.forEach(drawRect);
+      enemies.forEach(drawRect);
     }
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowUp") {
-        pacman.nextDirX = 0;
-        pacman.nextDirY = -1;
-      } else if (e.key === "ArrowDown") {
-        pacman.nextDirX = 0;
-        pacman.nextDirY = 1;
-      } else if (e.key === "ArrowLeft") {
-        pacman.nextDirX = -1;
-        pacman.nextDirY = 0;
-      } else if (e.key === "ArrowRight") {
-        pacman.nextDirX = 1;
-        pacman.nextDirY = 0;
-      }
-    });
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
 
-    gameLoop();
+    setInterval(spawnEnemy, 1000);
+    loop();
   </script>
 </body>
 </html>
